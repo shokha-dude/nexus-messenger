@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><title>Nexus Chat Test</title></head>
+<body>
+    <input id="token" placeholder="JWT Token" size="50" />
+    <button onclick="connect()">Connect</button>
+    
+    <div id="messages" style="height:300px; overflow:auto; border:1px solid #ccc"></div>
+    
+    <input id="msg" />
+    <button onclick="send()">Send</button>
+
+    <script>
+        let ws;
+        
+        function connect() {
+            const token = document.getElementById('token').value;
+            ws = new WebSocket(`ws://localhost:8080/ws?token=${token}`);
+            
+            ws.onmessage = (event) => {
+                const div = document.getElementById('messages');
+                div.innerHTML += `<div>Received: ${event.data}</div>`;
+            };
+        }
+        
+        function send() {
+            const msg = document.getElementById('msg').value;
+            ws.send(JSON.stringify({
+                type: "message",
+                payload: { text: msg }
+            }));
+        }
+    </script>
+</body>
+</html>

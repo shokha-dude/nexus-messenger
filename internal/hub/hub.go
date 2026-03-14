@@ -3,6 +3,7 @@ package hub
 import (
 	"encoding/json"
 	"log"
+	"nexus/internal/database"
 	"sync"
 )
 
@@ -15,6 +16,7 @@ type Hub struct {
 	Register   chan *Client
 	Unregister chan *Client
 	Broadcast  chan interface{} // Для массовых рассылок
+	DB         *database.SQLiteDB
 }
 
 func NewHub() *Hub {
@@ -33,9 +35,9 @@ func (h *Hub) Run() {
 			h.Lock()
 			h.Clients[client.UserID] = client
 			h.Unlock()
-			log.Printf("User %s (ID: %d) connected. Total online: %d", 
+			log.Printf("User %s (ID: %d) connected. Total online: %d",
 				client.Username, client.UserID, len(h.Clients))
-			
+
 			// Оповестить всех о новом пользователе онлайн
 			h.notifyStatus(client.UserID, "online")
 
@@ -46,7 +48,7 @@ func (h *Hub) Run() {
 				h.Unlock()
 				close(client.Send)
 				log.Printf("User %s disconnected", client.Username)
-				
+
 				// Оповестить всех о том, что пользователь оффлайн
 				h.notifyStatus(client.UserID, "offline")
 			}
@@ -68,7 +70,7 @@ func (h *Hub) notifyStatus(userID int, status string) {
 		},
 	}
 	data, _ := json.Marshal(statusMsg)
-	
+
 	h.RLock()
 	defer h.RUnlock()
 	for _, client := range h.Clients {
@@ -86,7 +88,7 @@ func (h *Hub) notifyStatus(userID int, status string) {
 
 func (h *Hub) broadcastToAll(message interface{}) {
 	data, _ := json.Marshal(message)
-	
+
 	h.RLock()
 	defer h.RUnlock()
 	for _, client := range h.Clients {
@@ -99,23 +101,45 @@ func (h *Hub) broadcastToAll(message interface{}) {
 	}
 }
 
-// SendToUser — отправить сообщение конкретному пользователю
+// SendToUser — отправляет сообщение конкретному пользователю
 func (h *Hub) SendToUser(userID int, message interface{}) bool {
-	h.RLock()
-	client, ok := h.Clients[userID]
-	h.RUnlock()
-	
-	if !ok {
-		return false // Пользователь не в сети
-	}
-	
-	data, _ := json.Marshal(message)
-	select {
-	case client.Send <- data:
-		return true
-	default:
-		// Если не можем отправить (канал заблокирован), удаляем клиента
-		h.Unregister <- client
-		return false
-	}
+    h.RLock()
+    client, ok := h.Clients[userID]
+    h.RUnlock()
+
+    if !ok {
+        log.Printf("User %d is offline, message saved for later", userID)
+        return false
+    }
+
+    data, err := json.Marshal(message)
+    if err != nil {
+        log.Printf("Failed to marshal message: %v", err)
+        return false
+    }
+
+    select {
+    case client.Send <- data:
+        log.Printf("Message delivered to user %d", userID)
+        return true
+    default:
+        log.Printf("User %d channel full, unregistering", userID)
+        h.Unregister <- client
+        return false
+    }
+}
+
+// GetOnlineUsers — возвращает список онлайн пользователей
+func (h *Hub) GetOnlineUsers() []map[string]interface{} {
+    h.RLock()
+    defer h.RUnlock()
+
+    users := make([]map[string]interface{}, 0, len(h.Clients))
+    for _, client := range h.Clients {
+        users = append(users, map[string]interface{}{
+            "user_id":  client.UserID,
+            "username": client.Username,
+        })
+    }
+    return users
 }

@@ -58,6 +58,8 @@ func (h *WebSocketHandler) HandleConnections(w http.ResponseWriter, r *http.Requ
 		Username: claims.Username,
 	}
 
+	h.Hub.DB = h.DB
+
 	// Регистрируем в хабе
 	h.Hub.Register <- client
 

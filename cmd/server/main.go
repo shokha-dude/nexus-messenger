@@ -6,7 +6,21 @@ import (
 	"nexus/internal/api"
 	"nexus/internal/database"
 	"nexus/internal/hub"
+	"os"
+	"os/exec"
 )
+
+func init() {
+    // Принудительно устанавливаем UTF-8
+    os.Setenv("LANG", "ru_RU.UTF-8")
+    os.Setenv("LC_ALL", "ru_RU.UTF-8")
+
+    // Для Windows
+    if os.Getenv("OS") == "Windows_NT" {
+        // Выполняем chcp 65001 через команду
+        exec.Command("cmd", "/c", "chcp", "65001").Run()
+    }
+}
 
 func main() {
 	// Подключение к SQLite (файл будет создан автоматически)
@@ -27,6 +41,7 @@ func main() {
 
 	// Создаем Hub и запускаем его менеджер
 	mainHub := hub.NewHub()
+	mainHub.DB = db  // Важно: передаем базу данных
 	go mainHub.Run()
 
 	// Создаем обработчики

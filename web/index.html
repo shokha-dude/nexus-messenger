@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nexus Chat</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/web/css/style.css">
+</head>
+<body>
+    <h1>Nexus Messenger</h1>
+
+    <div>
+        <input id="token" placeholder="JWT Token" size="60" value="" />
+        <button onclick="connect()">Connect</button>
+        <span id="connection-status">Disconnected</span>
+    </div>
+
+    <div id="container" style="display: none;">
+        <div id="sidebar">
+            <div class="tab-container">
+                <div class="tab active" onclick="showTab('users')" id="tab-users">Users</div>
+                <div class="tab" onclick="showTab('groups')" id="tab-groups">Groups</div>
+            </div>
+
+            <!-- Вкладка пользователей -->
+            <div id="users-tab" class="tab-content active">
+                <div class="section-header">
+                    <h3>Online Users <span id="online-count" class="badge">0</span></h3>
+                    <button onclick="getOnlineUsers()">⟳ Refresh</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="user-search" placeholder="Search users..." oninput="filterUsers()" />
+                </div>
+                <div class="scrollable-list">
+                    <ul id="users-list"></ul>
+                </div>
+            </div>
+
+            <!-- Вкладка групп -->
+            <div id="groups-tab" class="tab-content">
+                <div class="section-header">
+                    <h3>My Groups <span id="groups-count" class="badge">0</span></h3>
+                    <button onclick="showCreateGroupForm()">+ New Group</button>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="group-search" placeholder="Search groups..." oninput="filterGroups()" />
+                </div>
+                <div class="scrollable-list">
+                    <ul id="groups-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="main">
+            <div id="current-chat">
+                <span id="chat-type"></span>
+                Chat with: <span id="current-recipient">None</span>
+                <span id="typing-indicator" style="display: none;"></span>
+            </div>
+
+            <div id="group-info-container" style="display: none;"></div>
+            <div id="messages"></div>
+
+            <div id="input-area">
+                <input id="message-input" type="text" placeholder="Type your message..." />
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Оверлей и форма создания группы -->
+    <div id="overlay" onclick="hideCreateGroupForm()"></div>
+    <div id="create-group-form">
+        <h3>Create New Group</h3>
+        <input type="text" id="group-name" placeholder="Enter group name" />
+
+        <div style="margin: 10px 0;">
+            <strong>Select members:</strong>
+            <div class="checkbox-group" id="available-users"></div>
+        </div>
+
+        <div class="form-buttons">
+            <button onclick="createGroup()">Create Group</button>
+            <button onclick="hideCreateGroupForm()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="status"></div>
+
+    <script src="web/js/chat.js"></script>
+</body>
+</html>

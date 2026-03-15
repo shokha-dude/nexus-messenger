@@ -84,3 +84,17 @@ type GroupInfo struct {
     CreatedAt time.Time `json:"created_at"`
     CreatedBy string    `json:"created_by"`  // ИМЯ создателя (исправлено)
 }
+
+// TypingPayload — уведомление о наборе текста
+type TypingPayload struct {
+    To       string `json:"to"`        // Кому (username) - для лички
+    IsTyping bool   `json:"is_typing"` // true = начал печатать, false = перестал
+    InGroup  int    `json:"in_group,omitempty"` // ID группы (если в группе)
+}
+
+// TypingStatus — для отправки клиенту
+type TypingStatus struct {
+    From     string `json:"from"`       // Кто печатает
+    IsTyping bool   `json:"is_typing"`  // Статус
+    InGroup  int    `json:"in_group,omitempty"` // ID группы (если в группе)
+}

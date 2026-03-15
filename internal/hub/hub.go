@@ -5,7 +5,17 @@ import (
 	"log"
 	"nexus/internal/database"
 	"sync"
+	"time"
 )
+
+// TypingState - состояние печати пользователя
+type TypingState struct {
+    UserID    int
+    Username  string
+    ChatID    int       // ID чата (для групп) или 0 для лички
+    TargetID  int       // ID собеседника (для лички)
+    ExpiresAt time.Time
+}
 
 type Hub struct {
 	// Защита от конкурентного доступа к map
@@ -17,6 +27,7 @@ type Hub struct {
 	Unregister chan *Client
 	Broadcast  chan interface{} // Для массовых рассылок
 	DB         *database.SQLiteDB
+	TypingStates map[string]*TypingState // ключ: "user:chat" или "user:target"
 }
 
 func NewHub() *Hub {

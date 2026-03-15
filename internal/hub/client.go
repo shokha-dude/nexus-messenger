@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"nexus/internal/models"
+	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -14,6 +16,8 @@ type Client struct {
 	Send     chan []byte // Канал для отправки сообщений этому клиенту
 	UserID   int
 	Username string
+    lastTyping time.Time // время последнего статуса
+    typingMutex sync.Mutex
 }
 
 // readPump — горутина, которая читает сообщения от клиента
@@ -434,6 +438,83 @@ func (c *Client) ReadPump() {
                 "payload": users,
             }
             c.SendMessage(response)
+
+        case "typing":
+            var payload models.TypingPayload
+            data, _ := json.Marshal(wsMsg.Payload)
+            json.Unmarshal(data, &payload)
+
+            log.Printf("Typing event: %+v", payload)
+
+            // Определяем, кому отправлять уведомление
+            if payload.InGroup > 0 {
+                // Это группа
+                go c.handleGroupTyping(payload)
+            } else if payload.To != "" {
+                // Это личное сообщение
+                go c.handlePrivateTyping(payload)
+            }
+        }
+    }
+}
+
+// handlePrivateTyping - обработка статуса печати в личке
+func (c *Client) handlePrivateTyping(payload models.TypingPayload) {
+    c.typingMutex.Lock()
+    defer c.typingMutex.Unlock()
+
+    // Не чаще чем раз в секунду
+    if time.Since(c.lastTyping) < time.Second {
+        return
+    }
+    c.lastTyping = time.Now()
+
+    // Находим получателя
+    recipient, err := c.Hub.DB.GetUserByUsername(payload.To)
+    if err != nil {
+        log.Printf("Typing: recipient not found: %s", payload.To)
+        return
+    }
+
+    // Формируем статус
+    typingStatus := map[string]interface{}{
+        "type": "typing_status",
+        "payload": models.TypingStatus{
+            From:     c.Username,
+            IsTyping: payload.IsTyping,
+        },
+    }
+
+    // Отправляем получателю
+    c.Hub.SendToUser(recipient.ID, typingStatus)
+}
+
+// handleGroupTyping - обработка статуса печати в группе
+func (c *Client) handleGroupTyping(payload models.TypingPayload) {
+    // Получаем информацию о группе
+    groupInfo, err := c.Hub.DB.GetGroupInfo(payload.InGroup)
+    if err != nil {
+        log.Printf("Typing: group not found: %d", payload.InGroup)
+        return
+    }
+
+    // Формируем статус
+    typingStatus := map[string]interface{}{
+        "type": "typing_status",
+        "payload": models.TypingStatus{
+            From:     c.Username,
+            IsTyping: payload.IsTyping,
+            InGroup:  payload.InGroup,
+        },
+    }
+
+    // Рассылаем всем участникам группы, кроме отправителя
+    for _, member := range groupInfo.Members {
+        if member != c.Username {
+            memberID, err := c.Hub.DB.GetUserByUsername(member)
+            if err == nil && memberID != nil {
+                c.Hub.SendToUser(memberID.ID, typingStatus)
+            }
         }
     }
 }
